@@ -29,6 +29,8 @@ jobs:
 
       - name: Install dependencies
         working-directory: starter/backend
+        env:
+          CFLAGS: "-Wno-error=incompatible-pointer-types"
         run: pipenv install --dev --deploy
 
       - name: Run lint
@@ -53,6 +55,8 @@ jobs:
 
       - name: Install dependencies
         working-directory: starter/backend
+        env:
+          CFLAGS: "-Wno-error=incompatible-pointer-types"
         run: pipenv install --dev --deploy
 
       - name: Run tests
@@ -80,6 +84,8 @@ jobs:
 
       - name: Install dependencies
         working-directory: starter/backend
+        env:
+          CFLAGS: "-Wno-error=incompatible-pointer-types"
         run: pipenv install --dev --deploy
 
       - name: Verify backend application
