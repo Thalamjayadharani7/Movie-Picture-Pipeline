@@ -410,3 +410,55 @@ kustomize build | kubectl apply -f -
 ## License
 
 [License](LICENSE.md)
+
+---
+
+## Project Implementation and Deployment
+
+This project implements four GitHub Actions workflows for Continuous Integration and Continuous Deployment.
+
+### GitHub Actions Workflows
+
+| Workflow | File |
+|---|---|
+| Frontend CI | `.github/workflows/frontend-ci.yaml` |
+| Backend CI | `.github/workflows/backend-ci.yaml` |
+| Frontend CD | `.github/workflows/frontend-cd.yaml` |
+| Backend CD | `.github/workflows/backend-cd.yaml` |
+
+The workflows automate linting, testing, Docker image building, Amazon ECR image publishing, and Kubernetes deployment to Amazon EKS.
+
+The deployment workflows use GitHub Actions secrets for AWS credentials.
+
+### Deployed Application URLs
+
+**Frontend Application**
+
+http://a20ad76dd5a6a4ded9a1033b683d688c-788469710.us-east-1.elb.amazonaws.com
+
+**Backend Movies API**
+
+http://a866d2c1a77b1459a9bd6c1f0e667bfa-2133710702.us-east-1.elb.amazonaws.com/movies
+
+### Expected Movie Results
+
+The frontend retrieves and displays movies from the backend API:
+
+- Top Gun: Maverick
+- Sonic the Hedgehog
+- A Quiet Place
+
+The backend API returns the movie list in JSON format.
+
+### Project Evidence
+
+Screenshots of the GitHub Actions workflows, deployed frontend, backend API, and Kubernetes resources are available below:
+
+- [Frontend CI](./01-Frontend-CI.png.png)
+- [Backend CI](./02-Backend-CI.png.png)
+- [Frontend CD](./03-Frontend-CD.png.png)
+- [Backend CD](./04-Backend-CD.png.png)
+- [Frontend Application](./05-Frontend-Application.png.png)
+- [Backend API](./06-Backend-API.png.png)
+- [Kubernetes Services](./07-Kubernetes-Services.png.png)
+- [Kubernetes Pods](./08-Kubernetes-Pods.png.png)
