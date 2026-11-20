@@ -13,15 +13,9 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
-    name: Test, Build and Deploy Frontend
+  lint:
+    name: Frontend Lint
     runs-on: ubuntu-latest
-
-    env:
-      AWS_REGION: us-east-1
-      ECR_REPOSITORY: frontend
-      EKS_CLUSTER_NAME: cluster
-      IMAGE_TAG: ${{ github.sha }}
 
     steps:
       - name: Checkout repository
@@ -42,11 +36,45 @@ jobs:
         working-directory: starter/frontend
         run: npm run lint
 
+  test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.14.2'
+          cache: npm
+          cache-dependency-path: starter/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: starter/frontend
+        run: npm ci
+
       - name: Run frontend tests
         working-directory: starter/frontend
         env:
           CI: true
         run: npm test -- --watchAll=false
+
+  deploy:
+    name: Build and Deploy Frontend
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: us-east-1
+      ECR_REPOSITORY: frontend
+      EKS_CLUSTER_NAME: cluster
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
