@@ -1,0 +1,110 @@
+name: Frontend Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'starter/frontend/**'
+      - '.github/workflows/frontend-cd.yaml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Test, Build and Deploy Frontend
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: us-east-1
+      ECR_REPOSITORY: frontend
+      EKS_CLUSTER_NAME: cluster
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.14.2'
+          cache: npm
+          cache-dependency-path: starter/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: starter/frontend
+        run: npm ci
+
+      - name: Run frontend lint
+        working-directory: starter/frontend
+        run: npm run lint
+
+      - name: Run frontend tests
+        working-directory: starter/frontend
+        env:
+          CI: true
+        run: npm test -- --watchAll=false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name "$EKS_CLUSTER_NAME" \
+            --region "$AWS_REGION"
+
+      - name: Get backend LoadBalancer URL
+        id: backend
+        run: |
+          for i in {1..30}; do
+            BACKEND_HOST=$(kubectl get service backend \
+              -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
+            if [ -n "$BACKEND_HOST" ]; then
+              echo "url=http://$BACKEND_HOST" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "Waiting for backend LoadBalancer..."
+            sleep 10
+          done
+
+          echo "Backend LoadBalancer hostname not available"
+          exit 1
+
+      - name: Build and push frontend Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REACT_APP_MOVIE_API_URL: ${{ steps.backend.outputs.url }}
+        run: |
+          docker build \
+            --build-arg REACT_APP_MOVIE_API_URL="$REACT_APP_MOVIE_API_URL" \
+            --tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            starter/frontend
+
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Deploy frontend to EKS
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          kubectl apply -k starter/frontend/k8s
+
+          kubectl set image deployment/frontend \
+            frontend="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+          kubectl rollout status deployment/frontend --timeout=300s
+
+          kubectl get services
